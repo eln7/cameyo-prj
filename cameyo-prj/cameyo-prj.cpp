@@ -10,10 +10,6 @@
 #include <functional>
 #include <utility>
 
-#include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/containers/map.hpp>
-#include <boost/interprocess/allocators/allocator.hpp>
-
 #define PIPE_TIMEOUT 5000
 #define BUFSIZE 4096
 
@@ -93,7 +89,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
                 lpPipeInst->hPipeInst = hPipe;
 
                 lpPipeInst->cbToWrite = 0;
-                CompletedReadRoutine(0, 0, (LPOVERLAPPED)lpPipeInst);
+                CompletedWriteRoutine(0, 0, (LPOVERLAPPED)lpPipeInst);
                 fPendingIO = CreateAndConnectInstance(&oConnect);
                 break;
             case WAIT_IO_COMPLETION:
@@ -127,7 +123,7 @@ VOID WINAPI CompletedWriteRoutine(DWORD dwErr, DWORD cbWritten, LPOVERLAPPED lpO
             (LPOVERLAPPED)lpPipeInst,
             (LPOVERLAPPED_COMPLETION_ROUTINE)CompletedReadRoutine);
 
-    // Disconnect if an error occurred. 
+    std::wcout << "reading:" << std::wstring(lpPipeInst->chRequest) << std::endl;
 
     if (!fRead)
         DisconnectAndClose(lpPipeInst);
@@ -137,8 +133,7 @@ VOID WINAPI CompletedWriteRoutine(DWORD dwErr, DWORD cbWritten, LPOVERLAPPED lpO
 // This routine is called as an I/O completion routine after reading 
 // a request from the client. It gets data and writes it to the pipe. 
 
-VOID WINAPI CompletedReadRoutine(DWORD dwErr, DWORD cbBytesRead,
-    LPOVERLAPPED lpOverLap)
+VOID WINAPI CompletedReadRoutine(DWORD dwErr, DWORD cbBytesRead, LPOVERLAPPED lpOverLap)
 {
     LPPIPEINST lpPipeInst;
     BOOL fWrite = FALSE;
