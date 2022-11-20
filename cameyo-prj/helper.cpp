@@ -28,7 +28,7 @@ void PrintProcessNameAndID(DWORD processID, std::vector<std::wstring> & procToHo
 
         found = (std::find(procToHook.begin(), procToHook.end(), szProcessName) != procToHook.end());
 
-        _tprintf(TEXT("%s  (PID: %u) ---- %s\n"), szProcessName, processID, found?L"hook":L"not to hook");
+        _tprintf(TEXT("%s  (PID: %u) ---- %s\n"), szProcessName, processID, found?_T("hook"):_T("not to hook"));
         CloseHandle(hProcess);
     }
 }

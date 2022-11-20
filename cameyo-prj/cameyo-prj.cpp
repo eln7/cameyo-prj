@@ -1,4 +1,3 @@
-
 #include <windows.h>
 #include <stdio.h>
 #include <tchar.h>
@@ -9,6 +8,11 @@
 #include <queue>
 #include <functional>
 #include <utility>
+
+#include <cpprest/http_client.h>
+#include <cpprest/json.h>
+
+#pragma comment(lib, "cpprest142_2_10")
 
 #define PIPE_TIMEOUT 5000
 #define BUFSIZE 4096
@@ -252,11 +256,11 @@ VOID GetAnswerToRequest(LPPIPEINST pipe)
 
 int main()
 {
-    std::vector<std::wstring> procToHook{ L"notepad.exe", L"notepad++.exe", L"wordpad.exe", L"chrome.exe", L"firefox.exe" };
+    std::vector<std::wstring> procToHook{ _T("notepad.exe"), _T("notepad++.exe"), _T("wordpad.exe"), _T("chrome.exe"), _T("firefox.exe") };
     getProcList(procToHook);
 
     // Finding target window
-	HWND hwnd = FindWindow(NULL, L"testing.txt - Notepad");
+	HWND hwnd = FindWindow(NULL, _T("testing.txt - Notepad"));
 	if (hwnd == NULL) {
 		std::cout << "[ FAILED ] Could not find target window." << std::endl;
 		system("pause");
@@ -273,7 +277,7 @@ int main()
 	}
 
 	// Loading DLL
-	HMODULE dll = LoadLibraryEx(L"cameyoprjagent.dll", NULL, DONT_RESOLVE_DLL_REFERENCES);
+	HMODULE dll = LoadLibraryEx(_T("cameyoprjagent.dll"), NULL, DONT_RESOLVE_DLL_REFERENCES);
 	if (dll == NULL) {
 		std::cout << "[ FAILED ] The DLL could not be found." << std::endl;
 		system("pause");
