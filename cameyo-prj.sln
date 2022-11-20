@@ -7,8 +7,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cameyo-prj", "cameyo-prj\ca
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cameyo-prj-agent", "cameyo-prj-agent\cameyo-prj-agent.vcxproj", "{BEB6B4A3-E9C0-4BD0-A0D9-EDC93F8F748F}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-boost-ipc", "test-boost-ipc\test-boost-ipc.vcxproj", "{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -33,14 +31,6 @@ Global
 		{BEB6B4A3-E9C0-4BD0-A0D9-EDC93F8F748F}.Release|x64.Build.0 = Release|x64
 		{BEB6B4A3-E9C0-4BD0-A0D9-EDC93F8F748F}.Release|x86.ActiveCfg = Release|Win32
 		{BEB6B4A3-E9C0-4BD0-A0D9-EDC93F8F748F}.Release|x86.Build.0 = Release|Win32
-		{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}.Debug|x64.ActiveCfg = Debug|x64
-		{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}.Debug|x64.Build.0 = Debug|x64
-		{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}.Debug|x86.ActiveCfg = Debug|Win32
-		{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}.Debug|x86.Build.0 = Debug|Win32
-		{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}.Release|x64.ActiveCfg = Release|x64
-		{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}.Release|x64.Build.0 = Release|x64
-		{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}.Release|x86.ActiveCfg = Release|Win32
-		{3771FF52-3F36-4D14-9E85-86CF4C8B2A60}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
