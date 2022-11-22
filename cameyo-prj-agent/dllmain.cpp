@@ -123,9 +123,18 @@ extern "C" __declspec(dllexport) int NextHook(int code, WPARAM wParam, LPARAM lP
 		//MsgOut msg = { .codeChar = (int)((MSG*)lParam)->wParam, .strWindowName = L"Testing 123", .strProcessName = L"Testing 345" };
 		MsgOut msg = { 0, };
 		msg.codeChar = (int)((MSG*)lParam)->wParam;
-		GetWindowText( ((MSG*)lParam)->hwnd, msg.strWindowName, sizeof(msg.strWindowName)-1 );
+		wcscpy_s( msg.strProcessName, sizeof(msg.strProcessName)/(sizeof(wchar_t)), exeName.c_str());
+/*
+		int countName = GetWindowText( 
+			GetAncestor( GetForegroundWindow(), GW_OWNER),
+			//GetWindow(GetForegroundWindow(), GW_OWNER ),
+			//GetParent( ),
+			msg.strWindowName,
+			sizeof(msg.strWindowName) / sizeof(wchar_t)
+		);
+		dprintf("WindowName: %S(%u)\n", msg.strWindowName, countName);*/
 		queueOut.push(msg);
-		dprintf("code=%u, wparam=%c, queueOut: %u\n", code, ((MSG*)lParam)->wParam, queueOut.size());
+		dprintf("code=%u, wparam=%c, wName: %S, queueOut: %u\n", code, ((MSG*)lParam)->wParam, msg.strWindowName, queueOut.size());
 	}
 
 	//if (((MSG*)lParam)->message == WM_QUIT){

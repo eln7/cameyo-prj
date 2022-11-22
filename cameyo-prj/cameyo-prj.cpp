@@ -9,14 +9,12 @@
 #include <functional>
 #include <utility>
 
-#include <cpprest/http_client.h>
-#include <cpprest/json.h>
-
-#pragma comment(lib, "cpprest142_2_10")
+//#pragma comment(lib, "cpprest142_2_10")
 
 #define PIPE_TIMEOUT 5000
 #define BUFSIZE 4096
 
+int post();
 int getProcList(std::vector<std::wstring>& procToHook);
 
 #pragma pack(1)
@@ -48,12 +46,10 @@ VOID WINAPI CompletedReadRoutine(DWORD, DWORD, LPOVERLAPPED);
 
 HANDLE hPipe;
 
-
-
 DWORD WINAPI ThreadProc(LPVOID lpParameter)
 {
     HANDLE hConnectEvent;
-    OVERLAPPED oConnect;
+    OVERLAPPED oConnect = { 0, };
     LPPIPEINST lpPipeInst;
     DWORD dwWait, cbRet;
     BOOL fSuccess, fPendingIO;
@@ -70,15 +66,11 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
 
     while (1) {
         dwWait = WaitForSingleObjectEx( hConnectEvent, INFINITE, TRUE);
-        printf("dwWait: %u\n", dwWait);
         switch (dwWait){
             case 0:
                 if (fPendingIO){
-                    fSuccess = GetOverlappedResult(
-                        hPipe,
-                        &oConnect,
-                        &cbRet,
-                        FALSE);
+                    fSuccess = GetOverlappedResult(hPipe,&oConnect,&cbRet,FALSE);
+                    std::cout << "data read: " << cbRet << std::endl;
                     if (!fSuccess){
                         printf("ConnectNamedPipe (%d)\n", GetLastError());
                         return 0;
@@ -97,6 +89,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
                 fPendingIO = CreateAndConnectInstance(&oConnect);
                 break;
             case WAIT_IO_COMPLETION:
+                printf("Main thread WAIT_IO_COMPLETION GLE: %u\n", GetLastError());
                 break;
             default:{
                 printf("WaitForSingleObjectEx (%d)\n", GetLastError());
@@ -119,7 +112,7 @@ VOID WINAPI CompletedWriteRoutine(DWORD dwErr, DWORD cbWritten, LPOVERLAPPED lpO
     // The write operation has finished, so read the next request (if 
     // there is no error). 
 
-    if ((dwErr == 0) && (cbWritten == lpPipeInst->cbToWrite))
+    if ((dwErr == 0) && (cbWritten == lpPipeInst->cbToWrite)) {
         fRead = ReadFileEx(
             lpPipeInst->hPipeInst,
             lpPipeInst->chRequest,
@@ -127,7 +120,12 @@ VOID WINAPI CompletedWriteRoutine(DWORD dwErr, DWORD cbWritten, LPOVERLAPPED lpO
             (LPOVERLAPPED)lpPipeInst,
             (LPOVERLAPPED_COMPLETION_ROUTINE)CompletedReadRoutine);
 
-    std::wcout << "reading:" << std::wstring(lpPipeInst->chRequest) << std::endl;
+        MsgOut msgIn = { 0, };
+        memcpy( &msgIn, lpPipeInst->chRequest, sizeof(MsgOut));
+
+        std::wcout << "strWindowName :" << msgIn.strWindowName << std::endl;
+        std::wcout << "strProcessName :" << msgIn.strProcessName << std::endl;
+    }
 
     if (!fRead)
         DisconnectAndClose(lpPipeInst);
@@ -150,6 +148,7 @@ VOID WINAPI CompletedReadRoutine(DWORD dwErr, DWORD cbBytesRead, LPOVERLAPPED lp
     // error occurred). 
 
     if ((dwErr == 0) && (cbBytesRead != 0)) {
+        std::cout << "read: " << cbBytesRead << std::endl;
         GetAnswerToRequest(lpPipeInst);
 
         fWrite = WriteFileEx(
@@ -201,8 +200,7 @@ BOOL CreateAndConnectInstance(LPOVERLAPPED lpoOverlap)
         BUFSIZE * sizeof(TCHAR),    // input buffer size 
         PIPE_TIMEOUT,             // client time-out 
         NULL);                    // default security attributes
-    if (hPipe == INVALID_HANDLE_VALUE)
-    {
+    if (hPipe == INVALID_HANDLE_VALUE){
         printf("CreateNamedPipe failed with %d.\n", GetLastError());
         return 0;
     }
@@ -224,26 +222,25 @@ BOOL ConnectToNewClient(HANDLE hPipe, LPOVERLAPPED lpo)
         return 0;
     }
 
-    switch (GetLastError())
-    {
+    switch (GetLastError()){
         // The overlapped connection in progress. 
-    case ERROR_IO_PENDING:
-        fPendingIO = TRUE;
-        break;
-
-        // Client is already connected, so signal an event. 
-
-    case ERROR_PIPE_CONNECTED:
-        if (SetEvent(lpo->hEvent))
+        case ERROR_IO_PENDING:
+            fPendingIO = TRUE;
             break;
 
-        // If an error occurs during the connect operation... 
-    default:
-    {
-        printf("ConnectNamedPipe failed with %d.\n", GetLastError());
-        return 0;
+        // Client is already connected, so signal an event. 
+        case ERROR_PIPE_CONNECTED:
+            printf("Pipe connected\n");
+            if (SetEvent(lpo->hEvent))
+                break;
+            // fallthough if can't set event if an error occurs
+        default:{
+            // If an error occurs during the connect operation... 
+            printf("ConnectNamedPipe failed with %d.\n", GetLastError());
+            return 0;
+        }
     }
-    }
+
     return fPendingIO;
 }
 
