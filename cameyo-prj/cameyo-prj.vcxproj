@@ -136,6 +136,7 @@
   <ItemGroup>
     <ClCompile Include="cameyo-prj.cpp" />
     <ClCompile Include="helper.cpp" />
+    <ClCompile Include="restful.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
