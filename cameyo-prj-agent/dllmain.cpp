@@ -6,6 +6,7 @@ HINSTANCE hinstDLL;
 CRITICAL_SECTION CriticalSection;
 bool loopQueue = true;
 bool  gInit = false;
+UINT_PTR timer = NULL;
 
 #pragma pack(1)
 typedef struct tagMsgOut {
@@ -47,6 +48,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		dprintf("DLL_THREAD_DETACH\n");
 		break;
 	case DLL_PROCESS_DETACH:
+		//KillTimer(NULL, timer);
 		dprintf("DLL_PROCESS_DETACH:%S\n", exeName.c_str());
 		break;
 	}
@@ -100,6 +102,7 @@ void CALLBACK timerProc(HWND hwnd, UINT uMsg, UINT timerId, DWORD dwTime)
 		queueOut.pop();
 	}
 	dprintf("queue drained\n");
+	//gInit = false;
 	CloseHandle(hPipe);
 }
 
@@ -112,7 +115,8 @@ extern "C" __declspec(dllexport) int NextHook(int code, WPARAM wParam, LPARAM lP
 		size_t pos = exeName.find_last_of(L"\\");
 		exeName = exeName.substr(pos + 1, exeName.length());
 		dprintf("%S attached\n", exeName.c_str());
-		SetTimer(NULL, 0, 1000, (TIMERPROC)&timerProc);
+		timer = SetTimer(NULL, 0, 1000, (TIMERPROC)&timerProc);
+		//GetModuleHandleEx( );
 		gInit = true;
 	}
 

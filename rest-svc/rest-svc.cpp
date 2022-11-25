@@ -2,10 +2,8 @@
 //
 
 #include <iostream>
-//#include <cpprest/http_listener.h>
-//#include <cpprest/json.h>
-
-#pragma comment(lib, "cpprest142_2_10")
+#include <cpprest/http_listener.h>
+#include <cpprest/json.h>
 
 using namespace web;
 using namespace web::http;

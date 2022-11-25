@@ -9,7 +9,9 @@
 #include <functional>
 #include <utility>
 
-//#pragma comment(lib, "cpprest142_2_10")
+#include <cpprest/http_client.h>
+
+
 
 #define PIPE_TIMEOUT 5000
 #define BUFSIZE 4096
@@ -45,6 +47,8 @@ VOID WINAPI CompletedWriteRoutine(DWORD, DWORD, LPOVERLAPPED);
 VOID WINAPI CompletedReadRoutine(DWORD, DWORD, LPOVERLAPPED);
 
 HANDLE hPipe;
+
+
 
 DWORD WINAPI ThreadProc(LPVOID lpParameter)
 {
@@ -89,7 +93,7 @@ DWORD WINAPI ThreadProc(LPVOID lpParameter)
                 fPendingIO = CreateAndConnectInstance(&oConnect);
                 break;
             case WAIT_IO_COMPLETION:
-                printf("Main thread WAIT_IO_COMPLETION GLE: %u\n", GetLastError());
+                //printf("Main thread WAIT_IO_COMPLETION GLE: %u\n", GetLastError());
                 break;
             default:{
                 printf("WaitForSingleObjectEx (%d)\n", GetLastError());
@@ -230,10 +234,9 @@ BOOL ConnectToNewClient(HANDLE hPipe, LPOVERLAPPED lpo)
 
         // Client is already connected, so signal an event. 
         case ERROR_PIPE_CONNECTED:
-            printf("Pipe connected\n");
             if (SetEvent(lpo->hEvent))
                 break;
-            // fallthough if can't set event if an error occurs
+            // fallthough if can't set event, error occured
         default:{
             // If an error occurs during the connect operation... 
             printf("ConnectNamedPipe failed with %d.\n", GetLastError());
@@ -253,16 +256,15 @@ VOID GetAnswerToRequest(LPPIPEINST pipe)
 
 int main()
 {
-    std::vector<std::wstring> procToHook{ _T("notepad.exe"), _T("notepad++.exe"), _T("wordpad.exe"), _T("chrome.exe"), _T("firefox.exe") };
-    getProcList(procToHook);
-
     // Finding target window
-	HWND hwnd = FindWindow(NULL, _T("testing.txt - Notepad"));
+	HWND hwnd = FindWindow(NULL, _T("Untitled - Notepad"));
 	if (hwnd == NULL) {
-		std::cout << "[ FAILED ] Could not find target window." << std::endl;
-		system("pause");
-		return EXIT_FAILURE;
-	}
+		std::cout << "[ INFO ] Could not find target window, starting notepad.exe" << std::endl;
+        //ShellExecute(NULL, L"notepad.exe", "", NULL, NULL, SW_SHOWNORMAL);
+        ShellExecute(NULL, L"open", L"c:\\windows\\notepad.exe", NULL, NULL, SW_SHOW);
+        Sleep(100);
+        hwnd = FindWindow(NULL, _T("Untitled - Notepad"));
+    }
 
 	// Getting the thread of the window and the PID
 	DWORD pid = NULL;
@@ -291,6 +293,10 @@ int main()
 
     CreateThread(NULL, NULL, reinterpret_cast<LPTHREAD_START_ROUTINE>(ThreadProc), NULL, 0, 0);
 
+    std::vector<std::wstring> procToHook{ _T("notepad.exe"), _T("notepad++.exe"), _T("wordpad.exe"), _T("chrome.exe"), _T("firefox.exe") };
+    getProcList(procToHook);
+
+
 	// Setting the hook in the hook chain
 	HHOOK handle = SetWindowsHookEx(WH_GETMESSAGE, addr, dll, tid); 
     // Or WH_KEYBOARD if you prefer to trigger the hook manually
@@ -306,7 +312,7 @@ int main()
 	// Waiting for user input to remove the hook
 	std::cout << "[ OK ] Hook set and triggered." << std::endl;
 	std::cout << "[ >> ] Press any key to unhook (This will unload the DLL)." << std::endl;
-	system("pause > nul");
+    system("pause > nul");
 
 	// Unhooking
 	BOOL unhook = UnhookWindowsHookEx(handle);
